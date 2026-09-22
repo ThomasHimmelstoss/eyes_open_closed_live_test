@@ -1,0 +1,12 @@
+# requirements.txt - Python-Realtime-Pipeline (Alpha-Power Eyes-Open/Closed Demo)
+
+numpy               # lsl_stream.py, relative_alpha_power_features.py, calibration.py, pretrain_gipsa.py, analyze_features.py
+scipy               # relative_alpha_power_features.py (Welch-Methode fuer die Bandpower), analyze_features.py (Mann-Whitney-U)
+pylsl               # lsl_stream.py (LSL-Inlet-Verbindung, Sample-Abholung)
+mne                 # pretrain_gipsa.py (Raw-Objekte, Resampling, Event-Extraktion aus GIPSA-Daten)
+moabb               # pretrain_gipsa.py (Laden des GIPSA "EEG Alpha Waves"-Datensatzes)
+scikit-learn        # pretrain_gipsa.py (LogisticRegression, GroupKFold), live_classify.py (model.predict_proba), analyze_features.py (KMeans, PCA)
+joblib              # pretrain_gipsa.py, calibration.py, live_classify.py (Modell/Baseline speichern & laden)
+pandas              # analyze_features.py (CSV-Import des Live-Logs mit Zeitstempel-Parsing)
+matplotlib          # analyze_features.py (Vergleichs-Plots, Feature-Space-Exploration)
+statsmodels         # analyze_features.py (Statistical testing of the EEG data)
