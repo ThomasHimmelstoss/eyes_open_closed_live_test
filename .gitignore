@@ -1,0 +1,31 @@
+# .gitignore
+
+# Python
+__pycache__/
+*.pyc
+*.egg-info/
+.venv/
+venv/
+eeg_alpha_power_test/
+
+# Trained model / calibration artifacts - can be reproduced 
+alpha_classifier.joblib
+gipsa_training_features.npz
+gipsa_training_comparison.png
+
+# Personal/biometric recordings - sensitive/personal health data -> not pushed online, only the data structure is shown
+recordings/*
+!recordings/.gitkeep
+
+# MNE/MOABB aataset-cache (can get too large)
+.mne/
+
+# Simulink/MATLAB autosave-folder
+*.autosave
+*.slxc
+slprj/
+
+# OS-/Editor-stuff
+.DS_Store
+Thumbs.db
+.vscode/
