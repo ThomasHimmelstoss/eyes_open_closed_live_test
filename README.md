@@ -8,9 +8,9 @@
   (alpha band power / broadband power, log-scaled) is calculated as a single feature per channel,
   both for the pretraining dataset (GIPSA "EEG Alpha Waves") and for live test data.
 - A **logistic regression** model is pretrained on GIPSA and used for live classification.
-  Logistic regression was deliberately chosen over a deep-learning approach (e.g. EEGNet):
+  Logistic regression was chosen over a deep-learning approach (e.g. EEGNet):
   alpha-blocking is a well-established, strongly separable univariate effect, so a linear model
-  reaches comparable accuracy while staying fully interpretable (per-channel weights and
+  is expected to reach comparable accuracy while staying fully interpretable (per-channel weights and
   contributions can be inspected directly - see `demo_visual.py`).
 - Since the GIPSA training hardware differs from the g.tec setup used here, live features are
   normalized against a short per-subject baseline recording (`calibration.py`) rather than
@@ -22,10 +22,9 @@
 pip install -r requirements.txt --break-system-packages
 ```
 
-Requires Simulink to be actively streaming EEG data via LSL before `pretrain_gipsa.py`'s
-prerequisite (a working LSL connection) can be tested, and before `calibration.py`/
-`live_classify.py` can run. Expected stream: name `EEG_measurement_data_stream`, 28 channels
-(see `config.py`'s `CHANNEL_GROUPS` for the full layout), 250 Hz.
+Requires Simulink to be actively streaming EEG data via LSL before running  `calibration.py`/
+`live_classify.py` ==> a working LSL connection with expected stream name `EEG_measurement_data_stream`,
+28 channels (see `config.py`'s `CHANNEL_GROUPS` for the full layout), 250 Hz.
 
 ## 3. File Structure
 
@@ -49,7 +48,8 @@ prerequisite (a working LSL connection) can be tested, and before `calibration.p
         - `calibration.py`: collects a short baseline calibration recording for a new subject
           before a live test
         - `live_classify.py`: runs live classification and publishes predictions via an LSL
-          marker outlet for other applications to consume
+          marker outlet for other applications/ adaptive systems to further utilize 
+          classification outputs
         - `demo_visual.py`: opens a live-updating multi-panel plot during a live test; run in a
           second terminal alongside `live_classify.py`
 
@@ -90,12 +90,12 @@ Press Ctrl+C in each terminal to stop once finished.
 
 **Post-experiment analysis:**
 ```bash
-# per-channel condition comparison
-python analyze_features.py live recordings/subject_08/2026-09-21_131657/live_session_log.csv
+# per-channel condition comparison (with example path, enter respective path of interest)
+python analyze_features.py live recordings/subject_08/2026-09-21_131657/live_session_log.csv 
 python analyze_features.py calibration recordings/subject_08/2026-09-21_131657
 python analyze_features.py training gipsa_training_features.npz
 
-# PSD comparison
+# PSD comparison (with example path, enter respective path of interest)
 python analyze_psd_calibration.py session recordings/subject_01/2026-09-18_143022
 python analyze_psd_calibration.py all
 python analyze_psd_gipsa.py subject 3
@@ -104,10 +104,10 @@ python analyze_psd_gipsa.py all
 
 ## 5. Known Limitations / Open Questions
 
-- g.tec's OSCAR artifact-removal algorithm is proprietary; its exact frequency response
-  (e.g. whether/how it attenuates low-frequency content) is undocumented, so GIPSA's raw,
+- g.tec's OSCAR artifact-removal algorithm is proprietary/ patented; its exact frequency response
+  (e.g. whether/how it attenuates low-frequency content) is undocumented/ disclosed, so GIPSA's raw,
   unfiltered training signal and the OSCAR-filtered live signal are not perfectly comparable
-  preprocessing-wise.
+  preprocessing-wise. However, this trade-off is taken as a measure to minimize artifacts within the EEG.
 - Per-subject baseline z-scoring (rather than a global scaler) was chosen to compensate for
   hardware/electrode differences between GIPSA and this setup, but this has not yet been
   validated against real (non-table-test) recordings.
