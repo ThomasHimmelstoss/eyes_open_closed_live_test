@@ -1,6 +1,9 @@
 """
 analyze_psd_gipsa.py - PSD comparison (closed vs. open) for the GIPSA
 training set: a single subject, or the grand average across all subjects.
+Uses the SAME filtering as pretrain_gipsa.py (imported directly, not
+duplicated), so this plot always reflects exactly what the model was
+actually trained on.
 
 Usage:
   python analyze_psd_gipsa.py subject 3
@@ -14,14 +17,10 @@ import numpy as np
 
 from config import ALPHA_CHANNEL_NAMES, SAMPLING_RATE_HZ
 from psd_analysis import average_across_groups, compute_condition_psd, plot_psd_comparison
-from pretrain_gipsa import BLOCK_SECONDS, EVENT_ID, load_raws
+from pretrain_gipsa import APPLY_PREPROCESSING, BLOCK_SECONDS, EVENT_ID, apply_filters, load_raws
 
 
 def extract_raw_windows_for_subject(raw, window_seconds=4.0, step_seconds=2.0):
-    """Same block-respecting window extraction as pretrain_gipsa.py's
-    extract_windows_and_labels(), but keeps the RAW (non-feature-reduced)
-    windows instead of collapsing each one to a single alpha-power value.
-    """
     raw = raw.copy().pick(ALPHA_CHANNEL_NAMES)
     raw.resample(SAMPLING_RATE_HZ, method="polyphase")
 
@@ -31,7 +30,8 @@ def extract_raw_windows_for_subject(raw, window_seconds=4.0, step_seconds=2.0):
     window_samples = int(window_seconds * fs)
     step_samples = int(step_seconds * fs)
 
-    data = raw.get_data().T  # (n_samples, n_channels)
+    data = raw.get_data().T * 1e6  # Volts -> microvolts
+    data = apply_filters(data, fs, APPLY_PREPROCESSING)  # same filtering as training, imported above
 
     closed_windows, open_windows = [], []
     for onset_sample, _, label_code in events:
@@ -52,6 +52,7 @@ def main():
         sys.exit(1)
 
     mode = sys.argv[1]
+    filter_label = "+".join(APPLY_PREPROCESSING)  # e.g. "notch+bandpass" - reflects reality, not a flag
     raws = load_raws()
 
     if mode == "subject":
@@ -63,7 +64,7 @@ def main():
         _, psd_open = compute_condition_psd(open_windows, fs)
 
         plot_psd_comparison(freqs, psd_closed, psd_open, ALPHA_CHANNEL_NAMES,
-                             f"GIPSA subject {subject_id} - PSD closed vs. open",
+                             f"GIPSA subject {subject_id} ({filter_label}) - PSD closed vs. open",
                              f"gipsa_subject_{subject_id}_psd.png")
 
     elif mode == "all":
@@ -78,7 +79,8 @@ def main():
         _, psd_open = average_across_groups(per_subject_open)
 
         plot_psd_comparison(freqs, psd_closed, psd_open, ALPHA_CHANNEL_NAMES,
-                             f"GIPSA grand average (n={len(raws)} subjects) - PSD closed vs. open",
+                             f"GIPSA grand average ({filter_label}, n={len(raws)} subjects) - "
+                             f"PSD closed vs. open",
                              "gipsa_grand_average_psd.png")
     else:
         print(f"Unknown mode '{mode}'. Use 'subject <id>' or 'all'.")
