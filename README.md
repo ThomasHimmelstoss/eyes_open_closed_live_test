@@ -2,7 +2,7 @@
 
 ## 1. General Overview
 
-- Demonstrates the functionality of the g.tec Nautilus Research 8ch EEG cap for a real-time
+- Demonstrates the functionality of the g.tec Nautilus Research 8ch EEG cap for a real-time/ online
   BCI-style classification task.
 - The 4 parietal + occipital channels (P3, P4, O1, O2) are extracted, and relative alpha power
   (alpha band power / broadband power, log-scaled) is calculated as a single feature per channel,
@@ -15,16 +15,24 @@
 - Since the GIPSA training hardware differs from the g.tec setup used here, live features are
   normalized against a short per-subject baseline recording (`calibration.py`) rather than
   against the raw GIPSA feature scale - see the "Known limitations" section below.
+- The GIPSA dataset is downsampled from 512 -> 250 Hz, then a 50 Hz Notch filter + a 1-25 Hz Bandpass filter
+  are applied before extracting the relative alpha power features for training. This aims to replicate the 
+  incoming OSCAR filtered data (which are equally 50 Hz Notch filtered, before being passed into the g.tec
+  OSCAR live Simulink block, and additionally 1 Hz Highpass filtered afterwards. OSCAR always applies a 0-25 Hz 
+  Bandpass filter, at least once active, therefore the 1-25 Hz Bandpass filter for GIPSA training data is 
+  attempting to approx. replicate this preprocessing.)
 
 ## 2. Setup
 
 ```bash
-pip install -r requirements.txt --break-system-packages
+pip install -r requirements.txt
 ```
 
-Requires Simulink to be actively streaming EEG data via LSL before running  `calibration.py`/
-`live_classify.py` ==> a working LSL connection with expected stream name `EEG_measurement_data_stream`,
-28 channels (see `config.py`'s `CHANNEL_GROUPS` for the full layout), 250 Hz.
+The BCI system requires Simulink to be actively streaming EEG data via LSL. Before running  `calibration.py`/
+`live_classify.py` a working LSL connection with expected stream name `EEG_measurement_data_stream`,
+28 channels (see `config.py`'s `CHANNEL_GROUPS` for the full layout), 250 Hz, needs to be established.
+Therefore, run the respective Simulink EEG pipeline to start the LSL stream. The python script then
+automatically catches the stream and starts the online processing of incoming data.
 
 ## 3. File Structure
 
@@ -80,7 +88,7 @@ If you've never run this before, start from step 1. Otherwise, start from step 2
 python pretrain_gipsa.py
 ```
 
-**Start a live test** (Simulink must already be streaming):
+**Start live test** (Simulink must already be streaming):
 ```bash
 python calibration.py
 python live_classify.py
