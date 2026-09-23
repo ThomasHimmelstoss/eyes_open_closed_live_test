@@ -10,7 +10,7 @@ Settings for:
 import numpy as np
 
 # --- Session/subject identification -------------------------------------
-SUBJECT_ID = "subject_08"  # change per person before running calibration.py
+SUBJECT_ID = "subject_01"  # change per person before running calibration.py
 RECORDINGS_DIR = "recordings"
 
 
