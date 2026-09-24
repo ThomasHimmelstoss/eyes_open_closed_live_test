@@ -57,7 +57,7 @@ CHANNEL_GROUPS = {
 
 
 # Select the LSL pipeline channels with the respective EEG data (oscar_filtered, notch_hp_filtered, raw)
-ALPHA_SOURCE_GROUP = "oscar_filtered"
+ALPHA_SOURCE_GROUP =  "oscar_filtered"
 
 # Channels used for the Alpha-Blocking-Classifier (eyes open/closed):
 # Occipital + parietal, best SNR for the alpha-blocking effect -
