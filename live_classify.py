@@ -73,7 +73,6 @@ def main():
 
     model, baseline = load_artifacts(session_dir)
     weights = model.coef_[0]  # shape (4,) - ein Gewicht pro Kanal, in der Reihenfolge von ALPHA_CHANNEL_NAMES
-    bias = model.intercept_[0]
     
     inlet = connect_inlet()
     
