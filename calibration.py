@@ -20,7 +20,7 @@ from joblib import dump
 
 from config import (ALPHA_CHANNEL_INDICES, RECORDINGS_DIR, STEP_SECONDS_LIVE,
                      SUBJECT_ID, WINDOW_SECONDS, SAMPLING_RATE_HZ, pad_or_discard_window)
-from lsl_stream import connect_inlet, window_generator
+from lsl_stream import connect_inlet, window_generator, discard_initial_windows
 from relative_alpha_power_features import relative_alpha_power
 
 
@@ -39,7 +39,11 @@ CALIBRATION_OUTPUT_PATH = "baseline_calibration.joblib"
 def record_block(inlet, label, block_seconds=BLOCK_SECONDS):
     print(f"\n[calibration] Next block: '{label}' for {block_seconds:.0f}s.")
     input("[calibration] Press Enter to start ...")
-    print("Calibration running ... ")
+    
+    print("[calibration] Discarding initial windows to avoid transient effects ...")
+    discard_initial_windows(inlet)
+        
+    print("[calibration] -- Calibration running -- ")
 
     features = []
     raw_windows = []   # raw (non-z-scored) EEG for PSD analysis later on
@@ -98,6 +102,18 @@ def main():
 
     closed_features, closed_raw_windows = record_block(inlet, "Close your eyes")
     open_features, open_raw_windows = record_block(inlet, "Open your eyes")
+    
+    # Balance: gleiche Anzahl Fenster pro Bedingung, damit die gepoolte
+    # Baseline (mean/std ueber beide Bedingungen) nicht durch eine
+    # zufaellig groessere Stichprobe einer Seite verzerrt wird.
+    n = min(len(closed_features), len(open_features))
+    if len(closed_features) != len(open_features):
+        print(f"[calibration] Balancing window counts: closed={len(closed_features)}, "
+              f"open={len(open_features)} -> using {n} each.")
+    closed_features = closed_features[:n]
+    open_features = open_features[:n]
+    closed_raw_windows = closed_raw_windows[:n]
+    open_raw_windows = open_raw_windows[:n]
 
     print_sanity_check(closed_features, open_features)
 
@@ -105,10 +121,10 @@ def main():
         os.path.join(session_dir, "calibration_raw.npz"),
         closed_features=closed_features,
         open_features=open_features,
-        closed_raw_windows=np.array(closed_raw_windows),  # NEU: shape (n_windows, n_samples, 4)
-        open_raw_windows=np.array(open_raw_windows),        # NEU
+        closed_raw_windows=np.array(closed_raw_windows),  # shape (n_windows, n_samples, 4)
+        open_raw_windows=np.array(open_raw_windows),
         channel_names=["P3", "P4", "O1", "O2"],
-        sampling_rate_hz=SAMPLING_RATE_HZ,   # NEU: fuer die spaetere Welch-Berechnung
+        sampling_rate_hz=SAMPLING_RATE_HZ,  
     )
 
     stats = compute_baseline_stats(closed_features, open_features)
