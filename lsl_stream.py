@@ -62,3 +62,16 @@ def window_generator(inlet, window_seconds=WINDOW_SECONDS, step_seconds=STEP_SEC
             samples = np.array([s for _, s in buffer])
             last_yield_time = now
             yield samples, timestamps
+            
+            
+def discard_initial_windows(inlet, n_windows=4, window_seconds=WINDOW_SECONDS,
+                              step_seconds=STEP_SECONDS_LIVE):
+    """Consumes and discards the first n_windows from window_generator()
+    right after connecting, as a safety margin against any connection-
+    startup artifact (backlog catch-up, OS scheduling on first connect,
+    etc. - exact cause not conclusively identified, see chat). Cheap
+    (a few seconds) and removes the risk regardless of root cause.
+    """
+    generator = window_generator(inlet, window_seconds=window_seconds, step_seconds=step_seconds)
+    for _ in range(n_windows):
+        next(generator)
