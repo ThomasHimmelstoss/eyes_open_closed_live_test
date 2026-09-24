@@ -10,15 +10,17 @@ requirements for running live_classify.py: calibration.py was executed for this 
 
 import csv
 import os
+import time
 from collections import deque
 from datetime import datetime
 from pylsl import StreamInfo, StreamOutlet
+import numpy as np
 
 from joblib import load
 
 from config import (ALPHA_CHANNEL_INDICES, ALPHA_CHANNEL_NAMES, RECORDINGS_DIR,
                      STEP_SECONDS_LIVE, SUBJECT_ID, WINDOW_SECONDS)
-from lsl_stream import connect_inlet, window_generator
+from lsl_stream import connect_inlet, window_generator, discard_initial_windows
 from relative_alpha_power_features import relative_alpha_power
 
 MODEL_PATH = "alpha_classifier.joblib"  # global, not per-subject - trained once on GIPSA
@@ -66,11 +68,17 @@ def normalize_against_baseline(feature_vector, baseline):
 def main():
     session_dir = find_latest_session_dir(SUBJECT_ID)
     print(f"[live] using calibration session: {session_dir}")
+    
+    latencies = []  # logging all end-to-end processing latencies for each window
 
     model, baseline = load_artifacts(session_dir)
     weights = model.coef_[0]  # shape (4,) - ein Gewicht pro Kanal, in der Reihenfolge von ALPHA_CHANNEL_NAMES
     bias = model.intercept_[0]
+    
     inlet = connect_inlet()
+    
+    print("[live] discarding initial windows to avoid transient effects ...")
+    discard_initial_windows(inlet)
 
     state_info = StreamInfo("AlphaState", "Markers", 1, 0, "string", "alpha_state_outlet")
     state_outlet = StreamOutlet(state_info)
@@ -90,6 +98,9 @@ def main():
     try:
         for samples, _ in window_generator(inlet, window_seconds=WINDOW_SECONDS,
                                             step_seconds=STEP_SECONDS_LIVE):
+            
+            processing_start = time.monotonic()
+            
             eeg_window = samples[:, ALPHA_CHANNEL_INDICES]
             raw_feature = relative_alpha_power(eeg_window)
             normalized_feature = normalize_against_baseline(raw_feature, baseline)
@@ -107,14 +118,23 @@ def main():
 
             # push state, confidence and features per channel to outlet for "adaptive system"
             state_outlet.push_sample([f"{state}|{confidence:.3f}|{','.join(f'{c:.3f}' for c in contributions)}"])
+            
+            latency_ms = (time.monotonic() - processing_start) * 1000
+            latencies.append(latency_ms)
+            budget_ms = STEP_SECONDS_LIVE * 1000
+            latency_warning = " [!] EXCEEDS STEP BUDGET!" if latency_ms > budget_ms else ""
+
 
             print(f"[live] {state}  (confidence: {confidence:.2f})")
+            print(f"[latency: {latency_ms:.1f}ms / budget: {budget_ms:.0f}ms{latency_warning}]")
+            
             log_writer.writerow([
                 datetime.now().isoformat(),
                 *normalized_feature,          # P3, P4, O1, O2 - baseline-normalized
                 f"{prob_closed:.4f}",         # this single window's model probability
                 f"{smoothed_prob_closed:.4f}",
                 state,
+                latency_ms,
             ])
             log_file.flush()  # write immediately, so a crash/Ctrl+C never loses buffered rows
 
@@ -122,6 +142,13 @@ def main():
         print("\n[live] Stopped.")
     finally:
         log_file.close()
+        if latencies:
+            latencies_array = np.array(latencies)
+            print(f"\n[live] Latency summary over {len(latencies)} windows:")
+            print(f"  mean={latencies_array.mean():.1f}ms  "
+                f"max={latencies_array.max():.1f}ms  "
+                f"p95={np.percentile(latencies_array, 95):.1f}ms  "
+                f"budget={STEP_SECONDS_LIVE*1000:.0f}ms")
 
 
 if __name__ == "__main__":
