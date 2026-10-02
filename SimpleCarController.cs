@@ -9,7 +9,6 @@ public class SimpleCarController : MonoBehaviour
     [Header("Driving parameters")]
     public float maxSpeed = 20f;
     public float accelerationForce = 8f;
-    public float brakeForce = 15f;
 
     [Header("Keyboard fallback (test without live_classify.py running)")]
     public bool allowKeyboardOverride = true;
@@ -28,21 +27,17 @@ public class SimpleCarController : MonoBehaviour
         bool eyesClosed = bciInput != null && bciInput.eyesClosed;
         float confidence = bciInput != null ? bciInput.confidence : 1f;
 
-        // Lets you test the demo instantly without Simulink/live_classify.py
-        // running - hold Space to simulate "eyes closed".
         if (allowKeyboardOverride && Input.GetKey(simulateEyesClosedKey))
             eyesClosed = true;
 
         float forwardSpeed = Vector3.Dot(rb.velocity, transform.forward);
 
-        if (eyesClosed)
-        {
-            // Brake force scales with confidence - mirrors demo_visual.py's
-            // alpha-blending of the status indicator: low confidence ->
-            // gentler, more tentative braking, not an abrupt full stop.
-            rb.AddForce(-transform.forward * brakeForce * confidence, ForceMode.Acceleration);
-        }
-        else if (forwardSpeed < maxSpeed)
+        // Nur Gas, solange "Eyes Open" erkannt wird - bei "Eyes Closed" wird
+        // einfach nichts mehr angetrieben, das Auto rollt durch Linear
+        // Damping von selbst aus, statt aktiv gebremst zu werden. Klarer,
+        // eindeutiger Zusammenhang zwischen BCI-Zustand und Fahrzeugverhalten
+        // als eine gleichzeitige Gas+Brems-Logik.
+        if (!eyesClosed && forwardSpeed < maxSpeed)
         {
             rb.AddForce(transform.forward * accelerationForce * confidence, ForceMode.Acceleration);
         }
