@@ -1,3 +1,8 @@
+// Script to receive eye state (open/closed) from LSL stream and control gas/brake input in Unity.
+// Prerequisite: Install official LSL4Unity (labstreaminglayer/LSL4Unity from GitHub).
+// Package Manager → "Add package from git URL" → https://github.com/labstreaminglayer/LSL4Unity.git
+// Create GameObject with Resolver-Component (searching streams in local network)
+
 using UnityEngine;
 using Assets.LSL4Unity.Scripts.AbstractInlets; // Namespace je nach Paketversion ggf. anders
 
